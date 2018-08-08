@@ -1,0 +1,90 @@
+package app
+
+import entity.SpaceEvent
+import app.persistence.injection.DaggerPreferencesComponent
+import app.network.dsn.DsnApiDish
+import app.network.dsn.DsnApiService
+import app.network.dsn.DsnApiSignal
+import io.reactivex.Completable
+import retrofit2.Retrofit
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
+import retrofit2.converter.simplexml.SimpleXmlConverterFactory
+import usecases.InsertNewSpaceEvent
+import java.util.*
+
+class DeepSpaceNetwork {
+    private val PREFERENCES_KEY = "dsn"
+    private val NASA_DSN_API_ENDPOINT = "https://eyes.nasa.gov/dsn/data/"
+
+    private val dsnApiService = Retrofit.Builder()
+            .baseUrl(NASA_DSN_API_ENDPOINT)
+            .addConverterFactory(SimpleXmlConverterFactory.createNonStrict())
+            .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+            .build()
+            .create(DsnApiService::class.java)
+
+    private val preferences = DaggerPreferencesComponent
+            .builder()
+            .build()
+            .inject()
+
+    private fun mapDishToLocation(dish: String): String {
+        when (dish) {
+            "DSS24", "DSS25", "DSS26", "DSS14" -> return "Goldstone"
+            "DSS65", "DSS54", "DSS55", "DSS63" -> return "Madrid"
+            "DSS36", "DSS34", "DSS43", "DSS35" -> return "Canberra"
+            else -> return ""
+        }
+    }
+
+    private fun mapSignalToMessage(dish: DsnApiDish, signal: DsnApiSignal, isDownlink: Boolean): String {
+        var message = "${mapDishToLocation(dish.name)} (${dish.name}) is now connected to ${signal.spacecraft} "
+        message += if (isDownlink) "(downlink)" else "(uplink)"
+//        val dataRate = signal.dataRate.toDoubleOrNull() ?: 0.0
+//        if (dataRate > 1000) {
+//            message += "%.2f kbps".format(dataRate / 1000.0)
+//        } else {
+//            message += "%.0f bps".format(dataRate)
+//        }
+//        message += ")"
+        return message
+    }
+
+    fun update(): Completable {
+        // retrieve status and put it in the preferences
+        val date = Date()
+        println(date.time / 5000)
+        return Completable.fromObservable(dsnApiService
+                .getStatus(date.time / 5000)
+                .map {
+                    it.dishes.flatMap { dish ->
+                        dish.downSignals
+                                .filter { it.signalType == "data" && it.dataRate.isNotEmpty() }
+                                .map {
+                                    mapSignalToMessage(dish, it, true)
+                                }.union(dish.upSignals
+                                        .filter { it.signalType == "data" }
+                                        .map {
+                                            mapSignalToMessage(dish, it, false)
+                                        })
+                    }
+                }.map {
+                    val previousList = preferences.getStringList(PREFERENCES_KEY)
+                    val newItems = it.minus(previousList)
+                    preferences.putStringList(PREFERENCES_KEY, it)
+                    newItems
+                }.map {
+                    SpaceEvent(0, 0, it.joinToString("\n"))
+                }.doOnNext {
+                    // push results out via a use cases
+                    println(it)
+                    if (it.message.isNotEmpty()) {
+                        InsertNewSpaceEvent(PushbulletPublisher())
+                                .execute(it)
+                                .subscribe()
+                    }
+                }.doOnError {
+                    // ignore any errors
+                })
+    }
+}
