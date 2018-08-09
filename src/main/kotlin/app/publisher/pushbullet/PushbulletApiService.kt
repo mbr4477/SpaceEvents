@@ -1,4 +1,4 @@
-package app.network.pushbullet
+package app.publisher.pushbullet
 
 import io.reactivex.Observable
 import okhttp3.ResponseBody

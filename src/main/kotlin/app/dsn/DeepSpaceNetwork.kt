@@ -1,18 +1,16 @@
-package app
+package app.dsn
 
 import entity.SpaceEvent
-import app.persistence.injection.DaggerPreferencesComponent
-import app.network.dsn.DsnApiDish
-import app.network.dsn.DsnApiService
-import app.network.dsn.DsnApiSignal
+import entity.persistence.IPreferences
 import io.reactivex.Completable
 import retrofit2.Retrofit
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.simplexml.SimpleXmlConverterFactory
+import usecases.ISpaceEventPublisher
 import usecases.InsertNewSpaceEvent
 import java.util.*
 
-class DeepSpaceNetwork {
+class DeepSpaceNetwork(private val publisher: ISpaceEventPublisher, private val preferences: IPreferences) {
     private val PREFERENCES_KEY = "dsn"
     private val NASA_DSN_API_ENDPOINT = "https://eyes.nasa.gov/dsn/data/"
 
@@ -22,11 +20,6 @@ class DeepSpaceNetwork {
             .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
             .build()
             .create(DsnApiService::class.java)
-
-    private val preferences = DaggerPreferencesComponent
-            .builder()
-            .build()
-            .inject()
 
     private fun mapDishToLocation(dish: String): String {
         when (dish) {
@@ -40,13 +33,6 @@ class DeepSpaceNetwork {
     private fun mapSignalToMessage(dish: DsnApiDish, signal: DsnApiSignal, isDownlink: Boolean): String {
         var message = "${mapDishToLocation(dish.name)} (${dish.name}) is now connected to ${signal.spacecraft} "
         message += if (isDownlink) "(downlink)" else "(uplink)"
-//        val dataRate = signal.dataRate.toDoubleOrNull() ?: 0.0
-//        if (dataRate > 1000) {
-//            message += "%.2f kbps".format(dataRate / 1000.0)
-//        } else {
-//            message += "%.0f bps".format(dataRate)
-//        }
-//        message += ")"
         return message
     }
 
@@ -79,12 +65,12 @@ class DeepSpaceNetwork {
                     // push results out via a use cases
                     println(it)
                     if (it.message.isNotEmpty()) {
-                        InsertNewSpaceEvent(PushbulletPublisher())
+                        InsertNewSpaceEvent(publisher)
                                 .execute(it)
                                 .subscribe()
                     }
                 }.doOnError {
-                    // ignore any errors
+
                 })
     }
 }

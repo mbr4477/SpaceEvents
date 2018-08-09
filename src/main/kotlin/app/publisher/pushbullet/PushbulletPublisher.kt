@@ -1,8 +1,6 @@
-package app
+package app.publisher.pushbullet
 
 import entity.SpaceEvent
-import app.network.pushbullet.PushData
-import app.network.pushbullet.PushbulletApiService
 import retrofit2.Retrofit
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.moshi.MoshiConverterFactory

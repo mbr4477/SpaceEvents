@@ -1,4 +1,4 @@
-package app.network.dsn
+package app.dsn
 
 import org.simpleframework.xml.*
 
