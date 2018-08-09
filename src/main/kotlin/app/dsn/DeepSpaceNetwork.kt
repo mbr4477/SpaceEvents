@@ -39,7 +39,6 @@ class DeepSpaceNetwork(private val publisher: ISpaceEventPublisher, private val 
     fun update(): Completable {
         // retrieve status and put it in the preferences
         val date = Date()
-        println(date.time / 5000)
         return Completable.fromObservable(dsnApiService
                 .getStatus(date.time / 5000)
                 .map {
