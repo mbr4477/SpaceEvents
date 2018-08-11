@@ -1,5 +1,8 @@
 package com.matthewrussell.spaceevents.app.dsn
 
+import com.matthewrussell.spaceevents.GetDishesFromDatabase
+import com.matthewrussell.spaceevents.InsertNewSpaceEvent
+import com.matthewrussell.spaceevents.app.Injector
 import com.matthewrussell.spaceevents.entity.SpaceEvent
 import com.matthewrussell.spaceevents.entity.persistence.IPreferences
 import io.reactivex.Completable

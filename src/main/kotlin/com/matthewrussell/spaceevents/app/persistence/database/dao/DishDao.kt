@@ -20,11 +20,21 @@ class DishDao(private val dataStore: KotlinEntityDataStore<Persistable>, private
     override fun getById(id: Int): Observable<Dish> {
         return Observable.fromCallable {
             val entity = dataStore
-                                            .select(IDishEntity::class)
-                                            .where(IDishEntity::id eq id)
-                                            .get()
-                                            .first()
+                    .select(IDishEntity::class)
+                    .where(IDishEntity::id eq id)
+                    .get()
+                    .first()
             mapper.mapFromEntity(entity)
+        }
+    }
+
+    override fun getAll(): Observable<List<Dish>> {
+        return Observable.fromCallable {
+            val entityList = dataStore
+                    .select(IDishEntity::class)
+                    .get()
+                    .toList()
+            entityList.map { mapper.mapFromEntity(it) }
         }
     }
 
